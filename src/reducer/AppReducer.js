@@ -1,80 +1,67 @@
-export const initialState = {
-  token: '',
-  data: [],
-  loading: false,
-  error: '',
-};
+import {
+  getActivityId,
+  getActivitySteps,
+  isValidActivity,
+} from '../utils/activityUtils'
 
-function isValidActivity(activity) {
-  return (
-    activity &&
-    typeof activity === 'object' &&
-    Number(activity.steps) > 0 &&
-    Number(activity.caloriesBurned) > 0 &&
-    Number(activity.workoutMinutes) > 0 &&
-    typeof activity.goalAchieved === 'boolean'
-  );
+export const initialState = {
+  activities: [],
+  loading: false,
+  error: null,
 }
 
-export function appReducer(state, action) {
+const appReducer = (state, action) => {
   switch (action.type) {
-    case 'SET_LOADING':
-      return {
-        ...state,
-        loading: action.payload,
-      };
-    case 'SET_ERROR':
-      return {
-        ...state,
-        error: action.payload,
-      };
-    case 'SET_TOKEN':
-      return {
-        ...state,
-        token: action.payload,
-      };
-    case 'SET_DATA':
-      return {
-        ...state,
-        data: action.payload,
-      };
-    case 'TOGGLE_GOAL': {
-      const targetId = action.payload;
-      let hasChanged = false;
+    case 'FETCH_START':
+      return { ...state, loading: true, error: null }
+    case 'FETCH_SUCCESS':
+      return { ...state, loading: false, activities: action.payload }
+    case 'FETCH_ERROR':
+      return { ...state, loading: false, error: action.payload }
+    case 'TOGGLE_GOAL_ACHIEVED': {
+      if (!Array.isArray(state.activities) || state.activities.length === 0) {
+        return state
+      }
 
-      const updatedData = state.data.map((activity) => {
-        if (!activity || String(activity.activityId) !== String(targetId)) {
-          return activity;
+      const targetId = action.payload
+      let hasUpdates = false
+      const updatedActivities = state.activities.map((activity) => {
+        const activityId = getActivityId(activity)
+        if (String(activityId) !== String(targetId)) {
+          return activity
         }
 
         if (!isValidActivity(activity)) {
-          return activity;
+          return activity
         }
 
-        const forcedGoal = Number(activity.steps) >= 8000;
-        const nextGoalAchieved = forcedGoal ? true : !activity.goalAchieved;
+        const activitySteps = getActivitySteps(activity) ?? 0
+        const nextGoalAchieved =
+          activitySteps >= 8000 ? true : !activity.goalAchieved
 
-        if (activity.goalAchieved === nextGoalAchieved) {
-          return activity;
+        if (nextGoalAchieved === activity.goalAchieved) {
+          return activity
         }
 
-        hasChanged = true;
+        hasUpdates = true
         return {
           ...activity,
           goalAchieved: nextGoalAchieved,
-        };
-      });
+        }
+      })
 
-      if (!hasChanged) {
-        return state;
+      if (!hasUpdates) {
+        return state
       }
 
       return {
         ...state,
-        data: updatedData,
-      };
+        activities: updatedActivities,
+      }
     }
     default:
-      return state;
+      return state
   }
 }
+
+export default appReducer

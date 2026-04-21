@@ -1,72 +1,83 @@
-import { useMemo, useState } from 'react';
-import DataTable from '../components/DataTable';
-import Navbar from '../components/Navbar';
-import { useAppContext } from '../context/AppContext';
-import { isValidActivity, normalizeActivity } from '../services/activityUtils';
+import { useContext, useState } from 'react'
+import ActivityCard from '../components/ActivityCard'
+import { AppContext } from '../context/AppContext'
+import { getActivityId, getValidActivities } from '../utils/activityUtils'
 
-function FilterPage() {
-  const [minStepsInput, setMinStepsInput] = useState('');
+const FilterPage = () => {
+  const { activities, loading, error } = useContext(AppContext)
+  const [minimumSteps, setMinimumSteps] = useState('')
 
-  const {
-    state: { data, loading, error },
-    dispatch,
-  } = useAppContext();
+  const validActivities = getValidActivities(activities)
+  const trimmedMinimumSteps = minimumSteps.trim()
+  const parsedMinimumSteps = Number(trimmedMinimumSteps)
+  const hasEmptyInput = trimmedMinimumSteps === ''
+  const hasInvalidInput =
+    !hasEmptyInput &&
+    (!Number.isFinite(parsedMinimumSteps) || parsedMinimumSteps < 0)
 
-  const activities = Array.isArray(data) ? data : [];
-  const validActivities = activities
-    .filter((activity) => isValidActivity(activity))
-    .map((activity) => normalizeActivity(activity));
+  const filteredActivities = validActivities.filter((activity) =>
+    !hasEmptyInput && !hasInvalidInput
+      ? activity.steps >= parsedMinimumSteps
+      : false,
+  )
 
-  const validationMessage = useMemo(() => {
-    if (minStepsInput === '') {
-      return 'Please enter steps value';
-    }
+  if (loading) {
+    return (
+      <section>
+        <p>Loading activities...</p>
+      </section>
+    )
+  }
 
-    if (!/^\d+$/.test(minStepsInput)) {
-      return 'Please enter a valid non-negative number';
-    }
-
-    return '';
-  }, [minStepsInput]);
-
-  const filteredActivities = useMemo(() => {
-    if (validationMessage) {
-      return [];
-    }
-
-    const minSteps = Number(minStepsInput);
-    return validActivities.filter((activity) => Number(activity.steps) >= minSteps);
-  }, [validActivities, minStepsInput, validationMessage]);
-
-  const handleToggleGoal = (activityId) => {
-    dispatch({ type: 'TOGGLE_GOAL', payload: activityId });
-  };
+  if (error) {
+    return (
+      <section>
+        <p>{error}</p>
+      </section>
+    )
+  }
 
   return (
-    <main>
-      <Navbar />
-      <section style={{ padding: '1rem' }}>
-        <h1>Filter Activities</h1>
-        <label htmlFor="steps-input">Minimum Steps</label>
-        <input
-          id="steps-input"
-          data-testid="filter-input"
-          type="text"
-          value={minStepsInput}
-          onChange={(event) => setMinStepsInput(event.target.value)}
-          placeholder="Enter minimum steps"
-          style={{ display: 'block', marginTop: '0.5rem', marginBottom: '0.75rem' }}
-        />
+    <section>
+      <header>
+        <div>
+          <p>Question 3</p>
+          <h1>Filter Activities</h1>
+        </div>
+      </header>
 
-        {validationMessage && <p style={{ color: '#b91c1c' }}>{validationMessage}</p>}
-        {loading && <p>Loading data...</p>}
-        {error && <p style={{ color: '#b91c1c' }}>{error}</p>}
-        {!loading && !error && !validationMessage && (
-          <DataTable rows={filteredActivities} onToggleGoal={handleToggleGoal} />
-        )}
-      </section>
-    </main>
-  );
+      <label htmlFor="minimumSteps">
+        <span>Minimum steps</span>
+        <input
+          id="minimumSteps"
+          type="number"
+          value={minimumSteps}
+          onChange={(event) => setMinimumSteps(event.target.value)}
+          placeholder="Enter steps"
+        />
+      </label>
+
+      {hasEmptyInput ? (
+        <p>Please enter a minimum steps value.</p>
+      ) : null}
+
+      {hasInvalidInput ? (
+        <p>Please enter a valid non-negative number.</p>
+      ) : null}
+
+      {!hasEmptyInput && !hasInvalidInput && filteredActivities.length === 0 ? (
+        <p>No valid activities match that steps value.</p>
+      ) : null}
+
+      {!hasEmptyInput && !hasInvalidInput && filteredActivities.length > 0 ? (
+        <div>
+          {filteredActivities.map((activity) => (
+            <ActivityCard key={getActivityId(activity)} activity={activity} />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  )
 }
 
-export default FilterPage;
+export default FilterPage

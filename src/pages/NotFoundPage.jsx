@@ -1,9 +1,8 @@
-function NotFoundPage() {
-  return (
-    <main style={{ padding: '1rem' }}>
-      <h1>404 - Page Not Found</h1>
-    </main>
-  );
-}
+const NotFoundPage = () => (
+  <section>
+    <h1>Not Found</h1>
+    <p>The requested route was not found.</p>
+  </section>
+)
 
-export default NotFoundPage;
+export default NotFoundPage

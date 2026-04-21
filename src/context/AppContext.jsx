@@ -1,65 +1,60 @@
-import { createContext, useContext, useEffect, useReducer } from 'react';
-import { getPrivateData, getToken } from '../services/api';
-import { appReducer, initialState } from '../reducer/AppReducer';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useEffect, useReducer } from 'react'
+import appReducer, { initialState } from '../reducer/AppReducer'
+import { fetchAppData } from '../services/api'
+import {
+  getActivitiesFromPayload,
+  getActivityStats,
+} from '../utils/activityUtils'
 
-const AppContext = createContext(null);
+export const AppContext = createContext(initialState)
 
-export function AppProvider({ children }) {
-  const [state, dispatch] = useReducer(appReducer, initialState);
+export const AppProvider = ({ children }) => {
+  const [state, dispatch] = useReducer(appReducer, initialState)
+  const { totalActivities, goalAchievedCount, goalNotAchievedCount } =
+    getActivityStats(state.activities)
 
   useEffect(() => {
-    let isMounted = true;
+    let isMounted = true
 
-    const fetchOnLoad = async () => {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'SET_ERROR', payload: '' });
-
+    const loadData = async () => {
+      dispatch({ type: 'FETCH_START' })
       try {
-        const token = await getToken();
-        if (!token) {
-          throw new Error('Token missing from /public/token response');
-        }
-
-        const data = await getPrivateData(token);
-
-        if (!isMounted) {
-          return;
-        }
-
-        dispatch({ type: 'SET_TOKEN', payload: token });
-        dispatch({ type: 'SET_DATA', payload: Array.isArray(data) ? data : [] });
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
+        const data = await fetchAppData()
+        if (!isMounted) return
         dispatch({
-          type: 'SET_ERROR',
-          payload: error?.response?.data?.message || error.message || 'Request failed',
-        });
-      } finally {
-        if (isMounted) {
-          dispatch({ type: 'SET_LOADING', payload: false });
-        }
+          type: 'FETCH_SUCCESS',
+          payload: getActivitiesFromPayload(data),
+        })
+      } catch (error) {
+        if (!isMounted) return
+        dispatch({
+          type: 'FETCH_ERROR',
+          payload: error?.message || 'Failed to load data',
+        })
       }
-    };
+    }
 
-    fetchOnLoad();
+    loadData()
 
     return () => {
-      isMounted = false;
-    };
-  }, []);
+      isMounted = false
+    }
+  }, [])
 
-  return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>;
-}
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.appState = {
+        totalActivities,
+        goalAchievedCount,
+        goalNotAchievedCount,
+      }
+    }
+  }, [goalAchievedCount, goalNotAchievedCount, totalActivities])
 
-export function useAppContext() {
-  const context = useContext(AppContext);
-
-  if (!context) {
-    throw new Error('useAppContext must be used inside AppProvider');
-  }
-
-  return context;
+  return (
+    <AppContext.Provider value={{ ...state, dispatch }}>
+      {children}
+    </AppContext.Provider>
+  )
 }

@@ -1,51 +1,55 @@
-import { useEffect } from 'react';
-import Navbar from '../components/Navbar';
-import { useAppContext } from '../context/AppContext';
-import { isValidActivity } from '../services/activityUtils';
+import { useContext } from 'react'
+import { AppContext } from '../context/AppContext'
+import { getActivityStats } from '../utils/activityUtils'
 
-function StatsPage() {
-  const {
-    state: { data, loading, error },
-  } = useAppContext();
+const StatsPage = () => {
+  const { activities, loading, error } = useContext(AppContext)
+  const { totalActivities, goalAchievedCount, goalNotAchievedCount } =
+    getActivityStats(activities)
 
-  const rows = Array.isArray(data) ? data : [];
-  const validActivities = rows.filter((activity) => isValidActivity(activity));
+  if (loading) {
+    return (
+      <section>
+        <p>Loading activities...</p>
+      </section>
+    )
+  }
 
-  const totalActivities = validActivities.reduce((count) => count + 1, 0);
-  const goalAchievedCount = validActivities.reduce(
-    (count, activity) => (activity.goalAchieved === true ? count + 1 : count),
-    0
-  );
-  const goalNotAchievedCount = validActivities.reduce(
-    (count, activity) => (activity.goalAchieved === false ? count + 1 : count),
-    0
-  );
-
-  useEffect(() => {
-    window.appState = {
-      totalActivities,
-      goalAchievedCount,
-      goalNotAchievedCount,
-    };
-  }, [totalActivities, goalAchievedCount, goalNotAchievedCount]);
+  if (error) {
+    return (
+      <section>
+        <p>{error}</p>
+      </section>
+    )
+  }
 
   return (
-    <main>
-      <Navbar />
-      <section style={{ padding: '1rem' }}>
-        <h1>Stats</h1>
-        {loading && <p>Loading stats...</p>}
-        {error && <p style={{ color: '#b91c1c' }}>{error}</p>}
-        {!loading && !error && (
-          <div>
-            <div data-testid="total-activities">{totalActivities}</div>
-            <div data-testid="goal-achieved">{goalAchievedCount}</div>
-            <div data-testid="goal-not-achieved">{goalNotAchievedCount}</div>
-          </div>
-        )}
-      </section>
-    </main>
-  );
+    <section>
+      <header>
+        <div>
+          <p>Question 5</p>
+          <h1>Activities Analytics Dashboard</h1>
+        </div>
+      </header>
+
+      <div>
+        <article>
+          <h2>Total Valid Activities</h2>
+          <div data-testid="total-activities">{totalActivities}</div>
+        </article>
+
+        <article>
+          <h2>Goal Achieved</h2>
+          <div data-testid="goal-achieved">{goalAchievedCount}</div>
+        </article>
+
+        <article>
+          <h2>Goal Not Achieved</h2>
+          <div data-testid="goal-not-achieved">{goalNotAchievedCount}</div>
+        </article>
+      </div>
+    </section>
+  )
 }
 
-export default StatsPage;
+export default StatsPage
